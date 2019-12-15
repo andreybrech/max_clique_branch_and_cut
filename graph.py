@@ -216,6 +216,7 @@ class Graph(object):
                     break
                 self.used_colors[rand_available_color].add(vertex_name)
                 self.coloring[vertex_name] = rand_available_color
+
     #             print('chosen_Color',self.coloring[vertex_name])
 
     def initial_heuristic_degree(self):
@@ -329,3 +330,36 @@ def read_dimacs_graph(file_path):
             else:
                 continue
         return g
+
+
+import copy
+
+
+def find_independent_sets_by_coloring(coloring_colors, vertex_coloring):
+    colors = copy.deepcopy(coloring_colors)
+    ind_sets_coloring = dict()
+    for vertex_name in vertex_coloring:
+        ind_sets_coloring[vertex_name] = {vertex_coloring[vertex_name]}
+    for color in colors:
+        for vertex_name in coloring_colors[color]:
+            available_colors = set(colors.keys())
+            avalible_neighbours = g.V[vertex_name]['neighbours'].intersection(candidates)
+            while len(avalible_neighbours) > 0:
+                neigbour = avalible_neighbours.pop()
+                neigbour_color = vertex_coloring[neigbour]
+                neigbour_colos_set = ind_sets_coloring[neigbour]
+                available_colors -= {neigbour_color}.union(neigbour_colos_set)
+                for n_color in neigbour_colos_set:
+                    avalible_neighbours -= colors[n_color]
+            check_neighbours = set()
+            # есть цвета по которым может быть пересечение. Их надо проверить
+            for available_color in available_colors:
+                avalible_neighbours = g.V[vertex_name]['neighbours'].intersection(candidates)
+                avalible_neighbours = avalible_neighbours.intersection(colors[available_color])  # change to colors
+                check_neighbours = check_neighbours.union(avalible_neighbours)
+            for neighbour in check_neighbours:
+                available_colors -= ind_sets_coloring[neighbour]
+            for avalible_color in available_colors:
+                colors[avalible_color].add(vertex_name)
+            ind_sets_coloring[vertex_name] = ind_sets_coloring[vertex_name].union(available_colors)
+    return colors, ind_sets_coloring
