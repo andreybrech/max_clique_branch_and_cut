@@ -1,8 +1,7 @@
-class Graph(object):
-    """
-    class of graph
-    """
+import copy
 
+
+class Graph(object):
     def __init__(self):
         """
         V- множество вершин
@@ -22,7 +21,6 @@ class Graph(object):
         """
         self._add_vertex_to_neighbours(v1, v2)
         self._add_vertex_to_neighbours(v2, v1)
-
         return
 
     def add_vertex(self, v1):
@@ -59,7 +57,7 @@ class Graph(object):
 
     def neighbours(self, v1):
         """
-        print all neighbour names of chosen vertex
+        get all neighbour names of chosen vertex
         """
         if v1 in self.V:
             return self.V[v1]['neighbours']
@@ -102,43 +100,38 @@ class Graph(object):
         self.used_colors = set()
         self.coloring = dict()
 
-    def recolor(self):
+    def recolor(self, candidates: set):
         """
         Использовать с candidates при ветвлении
         т.к в первоначальной окраске слишком много цветов
         скорее всего стоит красить не каждое ветвление, а мб только в начале
         """
-        #     print('***recolor***')
-        max_color = -1
+        max_color = 0
         self.coloring = dict()
         for vertex_name in self.V:
-            self.coloring[vertex_name] = None
-        self.used_colors = dict()
-        for vertex_name in self.V:
-            #             print('vertex_name',vertex_name)
-            #             print('used_Colors',self.used_colors)
-            available_colors = set(self.used_colors.keys())
-            for neighbour_name in self.V[vertex_name]['neighbours']:
-                #                 print('N',neighbour_name, self.coloring[neighbour_name] ,)
-                available_colors -= {self.coloring[neighbour_name]}
-                if len(available_colors) == 0:
+            self.coloring[vertex_name] = 0
+        self.used_colors = {0: set()}
+        for vertex_name in candidates:
+            neighbour_colors = set()
+            for neighbour_name in self.V[vertex_name]['neighbours'].intersection(candidates):
+                neighbour_colors.add(self.coloring[neighbour_name])
+                if len(neighbour_colors) == len(self.used_colors):
                     break
-            if len(available_colors) == 0:
+            if len(neighbour_colors) == len(self.used_colors):
                 max_color += 1  # color is index in candidates_coloring
                 self.used_colors[max_color] = set()
                 self.used_colors[max_color].add(vertex_name)
                 self.coloring[vertex_name] = max_color
-
-            #             print('available_colors',available_colors)
-            if len(available_colors) != 0:
-                for available_color in available_colors:
+            elif len(neighbour_colors) < len(self.used_colors):
+                available_color = set(self.used_colors.keys()) - neighbour_colors
+                for available_color in available_color:
                     rand_available_color = available_color
                     break
                 self.used_colors[rand_available_color].add(vertex_name)
                 self.coloring[vertex_name] = rand_available_color
-
-    #             print('chosen_Color',self.coloring[vertex_name])
-    #         return used_colors,candidates_coloring
+        if len(self.coloring) != len(candidates):
+            raise NameError('Not all vertices colored')
+        return self.used_colors, self.coloring
 
     def recolor_by_degree(self):
         """
@@ -263,7 +256,6 @@ class Graph(object):
         makes clique:
         first - vertices with maximal color
         """
-
         clique = set()
         self.sort_vertex_by_degree()
 
@@ -312,6 +304,36 @@ class Graph(object):
         init_clique_degree = self.initial_heuristic_degree()
         return max(init_clique, init_clique_rev, init_clique_degree)
 
+    def find_independent_sets_by_coloring(self, coloring_colors, vertex_coloring, candidates):
+        colors = copy.deepcopy(coloring_colors)
+        ind_sets_coloring = dict()
+        for vertex_name in vertex_coloring:
+            ind_sets_coloring[vertex_name] = {vertex_coloring[vertex_name]}
+        for color in colors:
+            for vertex_name in coloring_colors[color]:
+                available_colors = set(colors.keys())
+                available_neighbours = self.V[vertex_name]['neighbours'].intersection(candidates)
+                while len(available_neighbours) > 0:
+                    neighbour = available_neighbours.pop()
+                    neighbour_color = vertex_coloring[neighbour]
+                    neighbour_colors_set = ind_sets_coloring[neighbour]
+                    available_colors -= {neighbour_color}.union(neighbour_colors_set)
+                    for n_color in neighbour_colors_set:
+                        available_neighbours -= colors[n_color]
+                check_neighbours = set()
+                # есть цвета по которым может быть пересечение. Их надо проверить
+                for available_color in available_colors:
+                    available_neighbours = self.V[vertex_name]['neighbours'].intersection(candidates)
+                    available_neighbours = available_neighbours.intersection(
+                        colors[available_color])  # change to colors
+                    check_neighbours = check_neighbours.union(available_neighbours)
+                for neighbour in check_neighbours:
+                    available_colors -= ind_sets_coloring[neighbour]
+                for available_color in available_colors:
+                    colors[available_color].add(vertex_name)
+                ind_sets_coloring[vertex_name] = ind_sets_coloring[vertex_name].union(available_colors)
+        return colors, ind_sets_coloring
+
 
 def read_dimacs_graph(file_path):
     # Parse .col file and return graph object
@@ -330,36 +352,3 @@ def read_dimacs_graph(file_path):
             else:
                 continue
         return g
-
-
-import copy
-
-
-def find_independent_sets_by_coloring(coloring_colors, vertex_coloring):
-    colors = copy.deepcopy(coloring_colors)
-    ind_sets_coloring = dict()
-    for vertex_name in vertex_coloring:
-        ind_sets_coloring[vertex_name] = {vertex_coloring[vertex_name]}
-    for color in colors:
-        for vertex_name in coloring_colors[color]:
-            available_colors = set(colors.keys())
-            avalible_neighbours = g.V[vertex_name]['neighbours'].intersection(candidates)
-            while len(avalible_neighbours) > 0:
-                neigbour = avalible_neighbours.pop()
-                neigbour_color = vertex_coloring[neigbour]
-                neigbour_colos_set = ind_sets_coloring[neigbour]
-                available_colors -= {neigbour_color}.union(neigbour_colos_set)
-                for n_color in neigbour_colos_set:
-                    avalible_neighbours -= colors[n_color]
-            check_neighbours = set()
-            # есть цвета по которым может быть пересечение. Их надо проверить
-            for available_color in available_colors:
-                avalible_neighbours = g.V[vertex_name]['neighbours'].intersection(candidates)
-                avalible_neighbours = avalible_neighbours.intersection(colors[available_color])  # change to colors
-                check_neighbours = check_neighbours.union(avalible_neighbours)
-            for neighbour in check_neighbours:
-                available_colors -= ind_sets_coloring[neighbour]
-            for avalible_color in available_colors:
-                colors[avalible_color].add(vertex_name)
-            ind_sets_coloring[vertex_name] = ind_sets_coloring[vertex_name].union(available_colors)
-    return colors, ind_sets_coloring
