@@ -55,11 +55,23 @@ def is_int_solution(sol):
     return True
 
 
+def is_a_clique(sol, g=Graph()):
+    var_values = [i[0].index+1 for i in sol.iter_var_values()]
+    for i in range(len(var_values)):
+        for j in range(i+1, len(var_values)):
+            # print(vars[i], vars[j])
+            # print(g.V[vars[i]]['neighbours'])
+            if var_values[j] not in g.V[var_values[i]]['neighbours']:
+                return False
+    return True
+
+
 class Solver:
-    def __init__(self, objective, vars, init_heuristic=0):
+    def __init__(self, objective, vars, g=Graph(),init_heuristic=0):
         self.upper_bound = objective
         self.vars = vars
         self.current_best = init_heuristic
+        self.g = g
 
     def search(self, model):
         m = copy.deepcopy(model)
@@ -78,7 +90,7 @@ def solve_problem():
     if sol is not None:
         model.print_solution()
 
-        solver = Solver(sol.get_objective_value(), sol.iter_var_values()) #, heuristic
+        solver = Solver(sol.get_objective_value(), sol.iter_var_values(), g)
         obj, variables = solver.search(model)
 
         print("\n------> SOLUTION <------")
