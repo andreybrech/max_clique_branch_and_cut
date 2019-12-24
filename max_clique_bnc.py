@@ -36,10 +36,10 @@ eps = 1e-5
 
 def log_solution(res):
     print("Objective", res.get_objective_value())
-    # print("solution vars:", end=' ')
-    # for i, j in res.iter_var_values():
-    #     print(i, j, sep=', ', end='; ')
-    # print("")
+    print("solution vars:", end=' ')
+    for i, j in res.iter_var_values():
+        print(i, j, sep=', ', end='; ')
+    print("")
 
 
 def is_int_solution(sol):
@@ -48,10 +48,6 @@ def is_int_solution(sol):
     for var in sol.iter_var_values():
         if var[1] % 1 > eps and abs(var[1] % 1 - 1) > eps:
             return False
-    # print("int solution")
-    # for i, j in sol.iter_var_values():
-    #     print(i, j, sep=', ', end='; ')
-    # print("")
     return True
 
 
@@ -66,6 +62,16 @@ def is_a_clique(sol, g=Graph()):
     return True
 
 
+def get_non_edges(sol, g=Graph()):
+    non_edges = []
+    var_values = [i[0] for i in sol.iter_var_values()]
+    for i in range(len(var_values)):
+        for j in range(i+1, len(var_values)):
+            if var_values[j].index+1 not in g.V[var_values[i].index+1]['neighbours']:
+                non_edges.append((var_values[j], var_values[i]))
+    return non_edges
+
+
 class Solver:
     def __init__(self, objective, vars, g=Graph(),init_heuristic=0):
         self.upper_bound = objective
@@ -74,9 +80,66 @@ class Solver:
         self.g = g
 
     def search(self, model):
-        m = copy.deepcopy(model)
-        # call solution search function
+        self.branch_and_cut_search(model)
         return self.current_best, self.vars
+
+    def branch_and_cut_search(self, model):
+        s = model.solve(log_output=False)
+        if s is None:
+            # print("No solution")
+            return
+        # log_solution(s)
+        # print("    best known solution:", self.current_best)
+        if s.get_objective_value() < self.current_best:
+            # print("objective <= current best", s.get_objective_value(), self.current_best)
+            return
+
+        if not is_int_solution(s):
+            if s.get_objective_value() > self.upper_bound:
+                return
+            # branching
+            # log_solution(s)
+            # print("    best known solution:", self.current_best)
+            var_dict = tuple()
+            branching_var = 0
+            for dic in s.iter_var_values():
+                if not var_dict:
+                    var_dict = dic
+                    branching_var = dic[1]
+                else:
+                    if dic[1] % 1 > eps and 1 - dic[1] % 1 > eps:
+                        if dic[1] % 1 > branching_var % 1:
+                            var_dict = dic
+                            branching_var = dic[1]
+
+            con1 = var_dict[0] <= int(branching_var)
+            con2 = var_dict[0] >= (int(branching_var) + 1)
+            # print("\nbranching:", var_dict[0], "<=", int(branching_var))
+            model.add_constraint(con1)
+            self.branch_and_cut_search(model)
+            model.remove_constraint(con1)
+
+            # print("\nbranching:", var_dict[0], ">=", int(branching_var) + 1)
+            model.add_constraint(con2)
+            self.branch_and_cut_search(model)
+            model.remove_constraint(con2)
+        else:
+            if not is_a_clique(s, self.g):
+                non_edges = get_non_edges(s, self.g)
+                for non_edge in non_edges:
+                    model.add_constraint(non_edge[0] + non_edge[1] <= 1)
+                self.branch_and_cut_search(model)
+            else:
+                if s.get_objective_value() > self.current_best:
+                    self.current_best = s.get_objective_value()
+                    self.vars = s.iter_var_values()
+                    print("* New best:", self.current_best)
+                    for i, j in s.iter_var_values():
+                        print(i, j, sep=', ', end='; ')
+                    print("")
+                else:
+                    # print(s.get_objective_value(), "<= current_best(", self.current_best, ")")
+                    pass
 
 
 def solve_problem():
@@ -98,8 +161,6 @@ def solve_problem():
         print("Solution vars:")
         for c in variables:
             print(c[0], c[1])
-        # print("\nBranch-and-Cut from:")
-        # model.print_solution()
     else:
         print("Model is infeasible")
 
