@@ -1,6 +1,7 @@
 from docplex.mp.model import Model
 import copy
 from graph import Graph, read_dimacs_graph
+import random
 
 
 def build_problem(g=Graph()):
@@ -198,6 +199,65 @@ def solve_problem(path):
             print(c[0], c[1])
     else:
         print("Model is infeasible")
+
+
+def find_degree_dict(g):
+    degree_arr = []
+    for vertex_name in g.V:
+        (vertex_name - 1, g.V[vertex_name]['degree'])
+        degree_arr.append(
+            (vertex_name - 1, g.V[vertex_name]['degree']))  # degree_arr - array of tupples (vertex_index,vertex_deg)
+    degree_arr.sort(key=lambda i: i[1], reverse=False)
+
+    min_degree = degree_arr[0][1]
+    max_degree = degree_arr[-1][1]
+
+    normed_degree_dict = dict()
+    for index in range(len(degree_arr)):
+        vertex_index = degree_arr[index][0]
+        degree = degree_arr[index][1]
+        normed_degree = 1 - (degree - min_degree) / (max_degree - min_degree)
+
+        normed_degree_dict[vertex_index] = normed_degree
+    return normed_degree_dict
+
+
+normed_degree_dict = find_degree_dict(g)
+
+
+def find_most_violated_greedy_and_degree(random_range=4, sum_without_random=5):
+    global x, mdl, normed_degree_dict
+    alpha_arr = [1]
+    betta_arr = [0]
+    best_sum = 0
+    best_ind_set = {}
+
+    for i in range(random_range):
+        alpha_arr.append(random.uniform(0, 1))
+        betta_arr.append(random.uniform(0, 1))
+    for alpha, betta in zip(alpha_arr, betta_arr):
+        sum_x = 0
+        var = list(x.items())  # var - array of tupples (vertex_index,vertex_variable)
+        var = [i for i in var if i[1].solution_value > 0]
+        var.sort(key=lambda i: alpha * i[1].solution_value + betta * normed_degree_dict[i[0]], reverse=True)
+
+        ind_set = set()
+        ind_set.add(var[0][0])
+        for vertex_index_1, vertex_variable in var:  # index = vertex_name - 1
+            addition_forbidden = False
+            for vertex_index_2 in ind_set:
+                if g.is_neighbour(vertex_index_1, vertex_index_2):
+                    addition_forbidden = True
+                    break
+            if not addition_forbidden:
+                ind_set.add(vertex_index_1)
+                sum_x += vertex_variable.solution_value
+        if sum_x > best_sum:
+            best_sum = sum_x
+            best_ind_set = ind_set
+        if sum_x > sum_without_random:
+            break
+    return best_ind_set, best_sum
 
 
 if __name__ == '__main__':
