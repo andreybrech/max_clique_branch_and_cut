@@ -43,7 +43,8 @@ def log_solution(res):
 
 
 def is_int_solution(sol):
-    if sol.get_objective_value() % 1 != 0:
+    sol_val = sol.get_objective_value()
+    if sol_val % 1 > eps and abs(sol_val % 1 - 1) > eps:
         return False
     for var in sol.iter_var_values():
         if var[1] % 1 > eps and abs(var[1] % 1 - 1) > eps:
@@ -141,12 +142,46 @@ class Solver:
                     # print(s.get_objective_value(), "<= current_best(", self.current_best, ")")
                     pass
 
+    def find_most_violated_greedy_and_degree(self, model, random_range=4, sum_without_random=5):
+        global x, mdl, normed_degree_dict
+        alpha_arr = [1]
+        betta_arr = [0]
+        best_sum = 0
+        best_ind_set = {}
 
-def solve_problem():
-    path_test = 'test/test2.txt'
-    g = read_dimacs_graph(path_test)
-    # heuristic = g.find_init_heuristic()
-    # print("Initial heuristic:", heuristic)
+        for i in range(random_range):
+            alpha_arr.append(random.uniform(0, 1))
+            betta_arr.append(random.uniform(0, 1))
+        for alpha, betta in zip(alpha_arr, betta_arr):
+            sum_x = 0
+            var = list(x.items())  # var - array of tupples (vertex_index,vertex_variable)
+            var = [i for i in var if i[1].solution_value > 0]
+            var.sort(key=lambda i: alpha * i[1].solution_value + betta * normed_degree_dict[i[0]], reverse=True)
+
+            ind_set = set()
+            ind_set.add(var[0][0])
+            for vertex_index_1, vertex_variable in var:  # index = vertex_name - 1
+                addition_forbidden = False
+                for vertex_index_2 in ind_set:
+                    if g.is_neighbour(vertex_index_1, vertex_index_2):
+                        addition_forbidden = True
+                        break
+                if not addition_forbidden:
+                    ind_set.add(vertex_index_1)
+                    sum_x += vertex_variable.solution_value
+            if sum_x > best_sum:
+                best_sum = sum_x
+                best_ind_set = ind_set
+            if sum_x > sum_without_random:
+                break
+        return best_ind_set, best_sum
+
+
+def solve_problem(path):
+    #path_test = 'test/test2.txt'
+    g = read_dimacs_graph(path)
+    heuristic = g.find_init_heuristic()
+    print("Initial heuristic:", heuristic)
     model = build_problem(g)
 
     sol = model.solve(log_output=True)
@@ -167,5 +202,8 @@ def solve_problem():
 
 if __name__ == '__main__':
     import timeit
-    elapsed_time = timeit.timeit(solve_problem, number=1)
-    print("Time in seconds: ", elapsed_time)
+    path = 'test/brock200_1.clq.txt'
+    solve_problem(path)
+    #elapsed_time = timeit.timeit(solve_problem, number=1)
+    #print("Time in seconds: ", elapsed_time)
+
