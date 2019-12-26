@@ -749,7 +749,7 @@ def branch_and_cut_search(sum_without_random=2):
                 mdl.print_solution()
         else:
             add_non_edges_constraints()
-
+            branch_and_cut_search(sum_without_random)
 
 if __name__ == '__main__':
 
@@ -766,7 +766,7 @@ if __name__ == '__main__':
     path_e_7 = 'test/p_hat1000-1.clq.txt'
 
     # Solver
-    g = read_dimacs_graph(path_e_1_4)
+    g = read_dimacs_graph(path_e_7)
     normed_degree_dict = find_normed_degree_dict(g)
     _, len_max_current_clique = find_best_heuristic_new()
     print(f'heuristic solution:{len_max_current_clique}')
