@@ -475,8 +475,10 @@ def find_normed_degree_dict(g):
     for index in range(len(degree_arr)):
         vertex_index = degree_arr[index][0]
         degree = degree_arr[index][1]
-        normed_degree = 1 - (degree - min_degree) / (max_degree - min_degree)
-
+        if (min_degree - max_degree)  != 0:
+            normed_degree = 1 - (degree - min_degree) / (max_degree - min_degree)
+        else:
+            normed_degree = 1
         normed_degree_dict[vertex_index] = normed_degree
     return normed_degree_dict
 
@@ -766,7 +768,7 @@ if __name__ == '__main__':
     path_e_7 = 'test/p_hat1000-1.clq.txt'
 
     # Solver
-    g = read_dimacs_graph(path_e_7)
+    g = read_dimacs_graph(path_e_6)
     normed_degree_dict = find_normed_degree_dict(g)
     _, len_max_current_clique = find_best_heuristic_new()
     print(f'heuristic solution:{len_max_current_clique}')
